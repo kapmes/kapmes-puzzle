@@ -2,183 +2,188 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KAPMES Puzzle Game</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    * { box-sizing: border-box; }
+    body{
+      margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       background: radial-gradient(circle at top, #101a3a 0, #02030a 55%, #000 100%);
-      color: #f5f5f5;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      color:#f5f5f5; min-height:100vh; display:flex; justify-content:center;
+      padding:14px;
+      touch-action: manipulation;
+      user-select:none;
+      -webkit-user-select:none;
     }
-    .game-wrapper {
-      width: 100%;
-      max-width: 1200px;
-      padding: 16px;
-      display: grid;
-      grid-template-columns: 180px minmax(0, 1fr) 180px;
-      gap: 16px;
-      align-items: stretch;
+
+    .game-wrapper{
+      width:100%;
+      max-width:1200px;
+      display:grid;
+      grid-template-columns: 180px minmax(0,1fr) 180px;
+      gap:14px;
+      align-items:stretch;
     }
-    @media (max-width: 900px) {
-      .game-wrapper {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto auto;
+
+    /* MOBILE: trays boven en onder, board in het midden */
+    @media (max-width: 900px){
+      .game-wrapper{
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
       }
     }
-    .sidebar {
+
+    .tray{
       background: rgba(2, 4, 24, 0.9);
       border-radius: 12px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      padding: 10px 10px 8px;
       border: 1px solid rgba(88, 141, 255, 0.4);
       box-shadow: 0 0 18px rgba(16, 124, 255, 0.35);
       max-height: 80vh;
-      overflow: auto;
-    }
-    .sidebar h2 {
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      opacity: 0.8;
-      margin: 0 0 4px;
-    }
-    .pieces-column {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
+      overflow:auto;
     }
 
-    main {
+    /* MOBILE trays: horizontaal scrollen */
+    @media (max-width: 900px){
+      .tray{ max-height:none; overflow:hidden; }
+      .pieces{
+        display:flex; gap:8px;
+        overflow-x:auto;
+        padding:8px 2px 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+
+    .tray h2{
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      opacity: .8;
+      margin: 0 0 6px;
+    }
+
+    /* DESKTOP pieces: grid-like wrap */
+    .pieces{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      justify-content:center;
+    }
+
+    main{
       background: rgba(3, 6, 32, 0.96);
       border-radius: 16px;
-      padding: 16px 18px 20px;
+      padding: 14px 14px 16px;
       border: 1px solid rgba(88, 141, 255, 0.4);
       box-shadow: 0 0 22px rgba(32, 141, 255, 0.4);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
       max-height: 80vh;
     }
-    main h1 {
-      margin: 0;
-      font-size: 22px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+
+    main h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      text-align:center;
     }
-    main p {
-      margin: 0;
-      font-size: 14px;
-      opacity: 0.85;
-      text-align: center;
+    main p{
+      margin:0;
+      font-size:13px;
+      opacity:.85;
+      text-align:center;
     }
 
-    #board {
-      margin-top: 10px;
+    #board{
+      margin-top:8px;
       background: radial-gradient(circle at center, #040b1f 0, #01020a 55%);
       border-radius: 14px;
       padding: 8px;
-      display: grid;
-      gap: 2px;
+      display:grid;
+      gap:2px;
       border: 1px solid rgba(120, 174, 255, 0.6);
-      position: relative;
+      position:relative;
+      touch-action: none; /* belangrijk: we willen slepen zonder scroll-gestoorde gestures */
     }
-    .slot {
-      border-radius: 4px;
-      border: 1px dashed rgba(130, 170, 255, 0.5);
+
+    .slot{
+      border-radius:4px;
+      border:1px dashed rgba(130, 170, 255, 0.5);
       background: rgba(4, 10, 32, 0.8);
-      position: relative;
+      position:relative;
     }
-    .slot.highlight {
-      border-style: solid;
+    .slot.highlight{
+      border-style:solid;
       border-color: rgba(142, 209, 255, 0.95);
       box-shadow: 0 0 10px rgba(142, 209, 255, 0.85);
     }
-    .piece {
-      cursor: grab;
-      border-radius: 4px;
+
+    .piece{
+      border-radius:4px;
       box-shadow: 0 0 10px rgba(120, 174, 255, 0.8);
-      border: 1px solid rgba(171, 215, 255, 0.9);
-      background-image: url('puzzle.png'); /* <- hier eventueel pad/naam aanpassen */
-      background-repeat: no-repeat;
-      transition: transform 0.12s ease, box-shadow 0.12s ease;
-    }
-    .piece.dragging {
-      opacity: 0.8;
-      transform: scale(1.05);
-      box-shadow: 0 0 18px rgba(142, 209, 255, 1);
-    }
-    .piece::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.7);
-      pointer-events: none;
+      border:1px solid rgba(171, 215, 255, 0.9);
+      background-image: url('puzzle.png');
+      background-repeat:no-repeat;
+      position:relative;
+      touch-action:none;
+      cursor:grab;
     }
 
-    #status {
-      font-size: 13px;
-      margin-top: 2px;
+    .floating{
+      position:fixed !important;
+      z-index:9999;
+      cursor:grabbing;
+      transform: scale(1.06);
+      opacity:.92;
+      box-shadow: 0 0 18px rgba(142, 209, 255, 1);
     }
-    #message {
-      margin-top: 8px;
-      font-size: 15px;
+
+    #status{ font-size: 12px; }
+    #message{
+      margin-top: 6px;
+      font-size: 14px;
       padding: 6px 12px;
       border-radius: 999px;
       border: 1px solid rgba(151, 233, 186, 0.9);
       background: rgba(6, 82, 45, 0.9);
-      display: none;
+      display:none;
     }
-    #message.visible {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    #message span.icon {
-      font-size: 18px;
+    #message.visible{ display:inline-flex; align-items:center; gap:6px; }
+
+    /* op kleine schermen: board niet te groot */
+    @media (max-width: 500px){
+      main{ padding:12px; }
     }
   </style>
 </head>
 <body>
   <div class="game-wrapper">
-    <aside class="sidebar">
+    <aside class="tray">
       <h2>Stukken</h2>
-      <div id="pieces-left" class="pieces-column"></div>
+      <div id="pieces-left" class="pieces"></div>
     </aside>
 
     <main>
       <h1>KAPMES PUZZLE</h1>
-      <p>Sleep de stukken vanuit links en rechts naar het midden en maak de volledige KAPMES-illustratie.</p>
+      <p>Sleep de stukken naar het midden en maak de illustratie compleet.</p>
       <p id="status">Puzzle wordt opgebouwd…</p>
       <div id="board"></div>
-      <div id="message">
-        <span class="icon">✨</span>
-        <span>Puzzle compleet. Welkom in het KAPMES-universum.</span>
-      </div>
+      <div id="message"><span>✨</span><span>Puzzle compleet. Welkom in het KAPMES-universum.</span></div>
     </main>
 
-    <aside class="sidebar">
+    <aside class="tray">
       <h2>Stukken</h2>
-      <div id="pieces-right" class="pieces-column"></div>
+      <div id="pieces-right" class="pieces"></div>
     </aside>
   </div>
 
   <script>
-    const ROWS = 5;           // 5 rijen x 6 kolommen = 30 stukken
+    const ROWS = 5;
     const COLS = 6;
-    const IMAGE_SRC = "puzzle.png"; // pas aan als de bestandsnaam anders is
+    const IMAGE_SRC = "puzzle.png";
 
     const board = document.getElementById("board");
     const piecesLeft = document.getElementById("pieces-left");
@@ -186,118 +191,167 @@
     const statusEl = document.getElementById("status");
     const messageEl = document.getElementById("message");
 
-    let draggedId = null;
+    let activePiece = null;
+    let originParent = null;
+    let originNextSibling = null;
+    let offsetX = 0, offsetY = 0;
 
-    function handleDragStart(e) {
-      draggedId = this.id;
-      this.classList.add("dragging");
-      if (e.dataTransfer) {
-        e.dataTransfer.setData("text/plain", this.id);
+    function checkCompletion(){
+      const slots = document.querySelectorAll(".slot");
+      let correct = 0;
+      slots.forEach(slot=>{
+        const piece = slot.firstElementChild;
+        if(piece && piece.dataset.index === slot.dataset.index) correct++;
+      });
+      statusEl.textContent = `Correct geplaatste stukken: ${correct} / ${slots.length}`;
+      messageEl.classList.toggle("visible", correct === slots.length && slots.length > 0);
+    }
+
+    function closestDropTarget(x, y){
+      const el = document.elementFromPoint(x, y);
+      if(!el) return null;
+      if(el.classList.contains("slot")) return el;
+      // als je op een piece in een slot komt
+      const slot = el.closest?.(".slot");
+      if(slot) return slot;
+      // trays
+      const tray = el.closest?.("#pieces-left, #pieces-right");
+      if(tray) return tray;
+      return null;
+    }
+
+    function clearHighlights(){
+      document.querySelectorAll(".slot.highlight").forEach(s=>s.classList.remove("highlight"));
+    }
+
+    function onPointerMove(e){
+      if(!activePiece) return;
+      const x = e.clientX, y = e.clientY;
+      activePiece.style.left = (x - offsetX) + "px";
+      activePiece.style.top  = (y - offsetY) + "px";
+
+      clearHighlights();
+      const target = closestDropTarget(x, y);
+      if(target && target.classList.contains("slot")){
+        target.classList.add("highlight");
       }
     }
 
-    function handleDragEnd() {
-      this.classList.remove("dragging");
+    function restoreToOrigin(){
+      if(!originParent) return;
+      if(originNextSibling) originParent.insertBefore(activePiece, originNextSibling);
+      else originParent.appendChild(activePiece);
     }
 
-    function handleDragOver(e) {
-      e.preventDefault();
-      if (this.classList.contains("slot")) {
-        this.classList.add("highlight");
+    function swapIfNeeded(targetSlot){
+      if(!targetSlot.classList.contains("slot")) return;
+      if(targetSlot.firstElementChild && targetSlot.firstElementChild !== activePiece){
+        const other = targetSlot.firstElementChild;
+        // zet 'other' terug naar origin van activePiece
+        if(originNextSibling) originParent.insertBefore(other, originNextSibling);
+        else originParent.appendChild(other);
       }
     }
 
-    function handleDragLeave(e) {
-      if (this.classList.contains("slot")) {
-        this.classList.remove("highlight");
-      }
-    }
+    function onPointerUp(e){
+      if(!activePiece) return;
 
-    function handleDrop(e) {
-      e.preventDefault();
-      if (this.classList.contains("slot")) {
-        this.classList.remove("highlight");
-      }
+      const x = e.clientX, y = e.clientY;
+      const target = closestDropTarget(x, y);
 
-      const pieceId = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || draggedId;
-      const piece = document.getElementById(pieceId);
-      if (!piece) return;
+      clearHighlights();
 
-      // Als er al een stuk in de slot ligt: swap
-      if (this.classList.contains("slot")) {
-        if (this.firstElementChild && this.firstElementChild !== piece) {
-          const otherPiece = this.firstElementChild;
-          const origin = piece.parentElement;
-          origin.appendChild(otherPiece);
-        }
+      // stop floating
+      activePiece.classList.remove("floating");
+      activePiece.style.left = "";
+      activePiece.style.top = "";
+
+      if(!target){
+        restoreToOrigin();
+      }else if(target.classList.contains("slot")){
+        swapIfNeeded(target);
+        target.appendChild(activePiece);
+      }else{
+        // trays
+        target.appendChild(activePiece);
       }
 
-      this.appendChild(piece);
+      activePiece.releasePointerCapture?.(e.pointerId);
+      activePiece = null;
+      originParent = null;
+      originNextSibling = null;
+
       checkCompletion();
     }
 
-    function checkCompletion() {
-      const slots = document.querySelectorAll(".slot");
-      let correct = 0;
-      slots.forEach((slot) => {
-        const piece = slot.firstElementChild;
-        if (piece && piece.dataset.index === slot.dataset.index) {
-          correct++;
-        }
-      });
-      statusEl.textContent =
-        "Correct geplaatste stukken: " + correct + " / " + slots.length;
+    function enableTouchDrag(piece){
+      piece.addEventListener("pointerdown", (e)=>{
+        // enkel primary
+        if(e.button !== undefined && e.button !== 0) return;
 
-      if (correct === slots.length && slots.length > 0) {
-        messageEl.classList.add("visible");
-      } else {
-        messageEl.classList.remove("visible");
-      }
+        activePiece = piece;
+        originParent = piece.parentElement;
+        originNextSibling = piece.nextElementSibling;
+
+        const rect = piece.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+
+        piece.setPointerCapture?.(e.pointerId);
+        piece.classList.add("floating");
+
+        // maak fixed positioning op start locatie
+        piece.style.left = rect.left + "px";
+        piece.style.top  = rect.top  + "px";
+
+        // zet in body zodat het overal bovenop kan bewegen
+        document.body.appendChild(piece);
+
+        e.preventDefault();
+      });
     }
 
-    function setupPuzzle() {
+    function setupPuzzle(){
       const img = new Image();
       img.src = IMAGE_SRC;
+
       img.onload = () => {
-        const maxBoardWidth = 800;
-        let boardWidth = Math.min(maxBoardWidth, img.naturalWidth);
+        // mobiel: board width op basis van viewport
+        const maxBoardWidth = Math.min(820, Math.max(280, window.innerWidth - 48));
+        const boardWidth = Math.min(maxBoardWidth, img.naturalWidth);
         const scale = boardWidth / img.naturalWidth;
-        let boardHeight = img.naturalHeight * scale;
+        const boardHeight = img.naturalHeight * scale;
 
         const tileW = boardWidth / COLS;
         const tileH = boardHeight / ROWS;
 
+        board.innerHTML = "";
         board.style.width = boardWidth + "px";
         board.style.height = boardHeight + "px";
         board.style.gridTemplateColumns = `repeat(${COLS}, ${tileW}px)`;
         board.style.gridTemplateRows = `repeat(${ROWS}, ${tileH}px)`;
 
-        const indices = Array.from({ length: ROWS * COLS }, (_, i) => i);
+        const indices = Array.from({length: ROWS*COLS}, (_,i)=>i);
 
-        // Slots aanmaken
-        indices.forEach((index) => {
+        // slots
+        indices.forEach((index)=>{
           const slot = document.createElement("div");
           slot.className = "slot";
           slot.dataset.index = String(index);
           slot.style.width = tileW + "px";
           slot.style.height = tileH + "px";
-          slot.addEventListener("dragover", handleDragOver);
-          slot.addEventListener("dragleave", handleDragLeave);
-          slot.addEventListener("drop", handleDrop);
           board.appendChild(slot);
         });
 
-        // Stukken schudden
-        const shuffled = indices
-          .slice()
-          .sort(() => Math.random() - 0.5);
+        // pieces
+        const shuffled = indices.slice().sort(()=>Math.random()-0.5);
+        piecesLeft.innerHTML = "";
+        piecesRight.innerHTML = "";
 
-        shuffled.forEach((index, position) => {
+        shuffled.forEach((index, pos)=>{
           const piece = document.createElement("div");
           piece.className = "piece";
-          piece.id = "piece-" + index;
           piece.dataset.index = String(index);
-          piece.setAttribute("draggable", "true");
 
           piece.style.width = tileW + "px";
           piece.style.height = tileH + "px";
@@ -305,32 +359,33 @@
 
           const col = index % COLS;
           const row = Math.floor(index / COLS);
-          const bgX = -col * tileW;
-          const bgY = -row * tileH;
-          piece.style.backgroundPosition = bgX + "px " + bgY + "px";
+          piece.style.backgroundPosition = (-col*tileW) + "px " + (-row*tileH) + "px";
 
-          piece.addEventListener("dragstart", handleDragStart);
-          piece.addEventListener("dragend", handleDragEnd);
+          enableTouchDrag(piece);
 
-          const target =
-            position < shuffled.length / 2 ? piecesLeft : piecesRight;
+          const target = (pos < shuffled.length/2) ? piecesLeft : piecesRight;
           target.appendChild(piece);
         });
 
-        [piecesLeft, piecesRight].forEach((container) => {
-          container.addEventListener("dragover", handleDragOver);
-          container.addEventListener("drop", handleDrop);
-        });
-
-        statusEl.textContent =
-          "Sleep de stukken naar het midden en maak de puzzel compleet.";
+        statusEl.textContent = "Sleep de stukken naar het midden en maak de puzzel compleet.";
+        checkCompletion();
       };
 
       img.onerror = () => {
-        statusEl.textContent =
-          "Afbeelding kon niet geladen worden. Controleer het pad naar het bestand.";
+        statusEl.textContent = "Afbeelding kon niet geladen worden. Controleer puzzle.png.";
       };
     }
+
+    // globale pointer handlers
+    window.addEventListener("pointermove", onPointerMove, {passive:false});
+    window.addEventListener("pointerup", onPointerUp);
+
+    // herbereken bij rotatie/responsive
+    let resizeTimer = null;
+    window.addEventListener("resize", ()=>{
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(setupPuzzle, 150);
+    });
 
     setupPuzzle();
   </script>
