@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>KAPMES Puzzle</title>
+
+<style>
+*{ box-sizing:border-box; }
+
+html, body{
+  margin:0;
+  padding:0;
+  height:100%;
+}
+
+body{
+  background:#050714;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color:#fff;
+  overflow:hidden; /* geen scroll */
+}
+
+.app{
+  height:100svh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* HEADER */
+.header{
+  padding:12px;
+  text-align:center;
+}
+.header h1{
+  margin:0;
+  font-size:18px;
+  letter-spacing:.08em;
+}
+.header p{
+  margin:4px 0 0;
+  font-size:12px;
+  opacity:.8;
+}
+
+/* PUZZLE ZONE */
+.board-wrap{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px;
+}
+
+#board{
+  display:grid;
+  gap:2px;
+  padding:6px;
+  background:#0a0f2a;
+  border-radius:12px;
+  touch-action:none;
+}
+
+/* SLOT */
+.slot{
+  background:#060a22;
+  border:1px dashed rgba(255,255,255,.25);
+  border-radius:4px;
+}
+
+/* PIECES BAR */
+.pieces-bar{
+  height:130px;
+  padding:10px;
+  background:#0a0f2a;
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* PIECE */
+.piece{
+  background-image:url("puzzle.png");
+  background-repeat:no-repeat;
+  border-radius:4px;
+  border:1px solid rgba(255,255,255,.6);
+  box-shadow:0 0 10px rgba(0,140,255,.5);
+  touch-action:none;
+  flex:0 0 auto;
+}
+
+/* DRAGGING */
+.floating{
+  position:fixed !important;
+  z-index:9999;
+  pointer-events:none;
+  transform:scale(1.05);
+  box-shadow:0 0 18px rgba(0,170,255,1);
+}
+
+/* COMPLETION */
+#done{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(5,10,40,.9);
+  font-size:20px;
+}
+#done.show{ display:flex; }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>KAPMES PUZZLE</h1>
+    <p id="status">Sleep de stukken naar de juiste plaats</p>
+  </div>
+
+  <div class="board-wrap">
+    <div id="board"></div>
+  </div>
+
+  <div class="pieces-bar" id="pieces"></div>
+</div>
+
+<div id="done">✨ Puzzle compleet</div>
+
+<script>
+/* CONFIG */
+const ROWS = 5;
+const COLS = 6;
+const SNAP = 60;
+
+/* ELEMENTS */
+const board = document.getElementById("board");
+const piecesBar = document.getElementById("pieces");
+const statusEl = document.getElementById("status");
+const doneEl = document.getElementById("done");
+
+let active = null;
+let offsetX = 0, offsetY = 0;
+let origin = null;
+
+/* MAGNETISCHE SLOT */
+function nearestSlot(rect){
+  let best=null, dist=Infinity;
+  document.querySelectorAll(".slot").forEach(s=>{
+    const r=s.getBoundingClientRect();
+    const dx=(rect.left+rect.width/2)-(r.left+r.width/2);
+    const dy=(rect.top+rect.height/2)-(r.top+r.height/2);
+    const d=Math.hypot(dx,dy);
+    if(d<dist){ dist=d; best=s; }
+  });
+  return dist<SNAP?best:null;
+}
+
+/* CHECK */
+function check(){
+  let ok=0;
+  document.querySelectorAll(".slot").forEach(s=>{
+    if(s.firstElementChild?.dataset.i===s.dataset.i) ok++;
+  });
+  statusEl.textContent=`Correct: ${ok}/${ROWS*COLS}`;
+  doneEl.classList.toggle("show", ok===ROWS*COLS);
+}
+
+/* DRAG */
+function startDrag(e){
+  active=e.target;
+  origin=active.parentElement;
+  const r=active.getBoundingClientRect();
+  offsetX=e.clientX-r.left;
+  offsetY=e.clientY-r.top;
+  active.classList.add("floating");
+  active.style.left=r.left+"px";
+  active.style.top=r.top+"px";
+  document.body.appendChild(active);
+  active.setPointerCapture(e.pointerId);
+}
+
+function moveDrag(e){
+  if(!active) return;
+  active.style.left=(e.clientX-offsetX)+"px";
+  active.style.top=(e.clientY-offsetY)+"px";
+}
+
+function endDrag(e){
+  if(!active) return;
+  const slot=nearestSlot(active.getBoundingClientRect());
+  active.classList.remove("floating");
+  active.style.left="";
+  active.style.top="";
+  if(slot){
+    if(slot.firstChild) piecesBar.appendChild(slot.firstChild);
+    slot.appendChild(active);
+  }else{
+    origin.appendChild(active);
+  }
+  active.releasePointerCapture(e.pointerId);
+  active=null;
+  check();
+}
+
+/* INIT */
+function init(){
+  const img=new Image();
+  img.src="puzzle.png";
+  img.onload=()=>{
+    const maxW=Math.min(window.innerWidth-24,600);
+    const ratio=img.naturalWidth/img.naturalHeight;
+    let w=maxW, h=w/ratio;
+    if(h>window.innerHeight*0.55){
+      h=window.innerHeight*0.55;
+      w=h*ratio;
+    }
+
+    const tileW=w/COLS, tileH=h/ROWS;
+    board.style.width=w+"px";
+    board.style.height=h+"px";
+    board.style.gridTemplateColumns=`repeat(${COLS},${tileW}px)`;
+
+    board.innerHTML="";
+    piecesBar.innerHTML="";
+
+    for(let i=0;i<ROWS*COLS;i++){
+      const s=document.createElement("div");
+      s.className="slot";
+      s.dataset.i=i;
+      s.style.width=tileW+"px";
+      s.style.height=tileH+"px";
+      board.appendChild(s);
+    }
+
+    [...Array(ROWS*COLS).keys()].sort(()=>Math.random()-0.5).forEach(i=>{
+      const p=document.createElement("div");
+      p.className="piece";
+      p.dataset.i=i;
+      p.style.width=tileW+"px";
+      p.style.height=tileH+"px";
+      p.style.backgroundSize=`${w}px ${h}px`;
+      p.style.backgroundPosition=
+        `${-(i%COLS)*tileW}px ${-Math.floor(i/COLS)*tileH}px`;
+      p.addEventListener("pointerdown",startDrag);
+      piecesBar.appendChild(p);
+    });
+
+    statusEl.textContent="Sleep de stukken naar de juiste plaats";
+  };
+}
+
+window.addEventListener("pointermove",moveDrag);
+window.addEventListener("pointerup",endDrag);
+window.addEventListener("resize",()=>setTimeout(init,150));
+
+init();
+</script>
+
+</body>
+</html>
