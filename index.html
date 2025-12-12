@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KAPMES Puzzle</title>
+
+  <style>
+    * { box-sizing: border-box; }
+    body{
+      margin:0;
+      padding:14px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #101a3a 0, #02030a 55%, #000 100%);
+      color:#f5f5f5;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+
+    .game-wrapper{
+      width:100%;
+      max-width:1200px;
+      display:grid;
+      grid-template-columns:180px 1fr 180px;
+      gap:14px;
+    }
+
+    @media (max-width:900px){
+      .game-wrapper{
+        grid-template-columns:1fr;
+        grid-template-rows:auto 1fr auto;
+      }
+    }
+
+    .tray{
+      background:rgba(2,4,24,.9);
+      border-radius:12px;
+      padding:10px;
+      border:1px solid rgba(88,141,255,.4);
+      box-shadow:0 0 18px rgba(16,124,255,.35);
+    }
+
+    .tray h2{
+      margin:0 0 6px;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      opacity:.8;
+    }
+
+    .pieces{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      justify-content:center;
+    }
+
+    @media (max-width:900px){
+      .pieces{
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+    }
+
+    main{
+      background:rgba(3,6,32,.96);
+      border-radius:16px;
+      padding:14px;
+      border:1px solid rgba(88,141,255,.4);
+      box-shadow:0 0 22px rgba(32,141,255,.4);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+    }
+
+    main h1{
+      margin:0;
+      font-size:18px;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+
+    main p{
+      margin:0;
+      font-size:13px;
+      opacity:.85;
+      text-align:center;
+    }
+
+    #board{
+      margin-top:6px;
+      padding:8px;
+      display:grid;
+      gap:2px;
+      border-radius:14px;
+      border:1px solid rgba(120,174,255,.6);
+      background: radial-gradient(circle at center, #040b1f 0, #01020a 55%);
+      touch-action:none;
+    }
+
+    .slot{
+      border:1px dashed rgba(130,170,255,.5);
+      border-radius:4px;
+      background:rgba(4,10,32,.8);
+    }
+
+    .slot.highlight{
+      border-style:solid;
+      border-color:rgba(142,209,255,.95);
+      box-shadow:0 0 10px rgba(142,209,255,.85);
+    }
+
+    .piece{
+      background-image:url("puzzle.png");
+      background-repeat:no-repeat;
+      border-radius:4px;
+      border:1px solid rgba(171,215,255,.9);
+      box-shadow:0 0 10px rgba(120,174,255,.8);
+      touch-action:none;
+      cursor:grab;
+    }
+
+    .floating{
+      position:fixed !important;
+      z-index:9999;
+      cursor:grabbing;
+      transform:scale(1.06);
+      opacity:.92;
+      box-shadow:0 0 18px rgba(142,209,255,1);
+    }
+
+    #status{ font-size:12px; }
+    #message{
+      display:none;
+      padding:6px 12px;
+      border-radius:999px;
+      font-size:14px;
+      background:rgba(6,82,45,.9);
+      border:1px solid rgba(151,233,186,.9);
+    }
+    #message.visible{ display:inline-flex; gap:6px; }
+  </style>
+</head>
+
+<body>
+<div class="game-wrapper">
+  <aside class="tray">
+    <h2>Stukken</h2>
+    <div id="pieces-left" class="pieces"></div>
+  </aside>
+
+  <main>
+    <h1>KAPMES PUZZLE</h1>
+    <p>Sleep de stukken naar het midden.</p>
+    <p id="status">Puzzle laden…</p>
+    <div id="board"></div>
+    <div id="message">✨ Puzzle compleet</div>
+  </main>
+
+  <aside class="tray">
+    <h2>Stukken</h2>
+    <div id="pieces-right" class="pieces"></div>
+  </aside>
+</div>
+
+<script>
+/* CONFIG */
+const ROWS = 5;
+const COLS = 6;
+const SNAP_DISTANCE = 70;
+
+/* ELEMENTEN */
+const board = document.getElementById("board");
+const piecesLeft = document.getElementById("pieces-left");
+const piecesRight = document.getElementById("pieces-right");
+const statusEl = document.getElementById("status");
+const messageEl = document.getElementById("message");
+
+/* STATE */
+let activePiece = null;
+let originParent = null;
+let originNext = null;
+let offsetX = 0, offsetY = 0;
+
+/* MAGNETISCHE SLOT DETECTIE */
+function findNearestSlot(pieceRect){
+  let closest = null;
+  let minDist = Infinity;
+
+  document.querySelectorAll(".slot").forEach(slot=>{
+    const r = slot.getBoundingClientRect();
+    const dx = (pieceRect.left + pieceRect.width/2) - (r.left + r.width/2);
+    const dy = (pieceRect.top + pieceRect.height/2) - (r.top + r.height/2);
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if(d < minDist){
+      minDist = d;
+      closest = slot;
+    }
+  });
+
+  return minDist <= SNAP_DISTANCE ? closest : null;
+}
+
+/* CHECK COMPLETION */
+function checkCompletion(){
+  let correct = 0;
+  document.querySelectorAll(".slot").forEach(slot=>{
+    if(slot.firstElementChild?.dataset.index === slot.dataset.index){
+      correct++;
+    }
+  });
+  statusEl.textContent = `Correct: ${correct} / ${ROWS*COLS}`;
+  messageEl.classList.toggle("visible", correct === ROWS*COLS);
+}
+
+/* POINTER EVENTS */
+function onPointerMove(e){
+  if(!activePiece) return;
+  activePiece.style.left = (e.clientX - offsetX) + "px";
+  activePiece.style.top  = (e.clientY - offsetY) + "px";
+}
+
+function onPointerUp(e){
+  if(!activePiece) return;
+
+  const rect = activePiece.getBoundingClientRect();
+  const slot = findNearestSlot(rect);
+
+  activePiece.classList.remove("floating");
+  activePiece.style.left = "";
+  activePiece.style.top = "";
+
+  if(slot){
+    if(slot.firstElementChild && slot.firstElementChild !== activePiece){
+      const other = slot.firstElementChild;
+      originNext ? originParent.insertBefore(other, originNext)
+                 : originParent.appendChild(other);
+    }
+    slot.appendChild(activePiece);
+  } else {
+    originNext ? originParent.insertBefore(activePiece, originNext)
+               : originParent.appendChild(activePiece);
+  }
+
+  activePiece.releasePointerCapture(e.pointerId);
+  activePiece = null;
+  originParent = null;
+  originNext = null;
+  checkCompletion();
+}
+
+/* ENABLE DRAG */
+function enableDrag(piece){
+  piece.addEventListener("pointerdown", e=>{
+    activePiece = piece;
+    originParent = piece.parentElement;
+    originNext = piece.nextElementSibling;
+
+    const r = piece.getBoundingClientRect();
+    offsetX = e.clientX - r.left;
+    offsetY = e.clientY - r.top;
+
+    piece.classList.add("floating");
+    piece.style.left = r.left + "px";
+    piece.style.top = r.top + "px";
+
+    document.body.appendChild(piece);
+    piece.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+}
+
+/* SETUP */
+function setupPuzzle(){
+  const img = new Image();
+  img.src = "puzzle.png";
+  img.onload = ()=>{
+    const maxW = Math.min(800, window.innerWidth - 40);
+    const scale = maxW / img.naturalWidth;
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    const tileW = w / COLS;
+    const tileH = h / ROWS;
+
+    board.innerHTML = "";
+    board.style.width = w + "px";
+    board.style.height = h + "px";
+    board.style.gridTemplateColumns = `repeat(${COLS}, ${tileW}px)`;
+
+    [...Array(ROWS*COLS)].forEach((_,i)=>{
+      const slot = document.createElement("div");
+      slot.className = "slot";
+      slot.dataset.index = i;
+      slot.style.width = tileW + "px";
+      slot.style.height = tileH + "px";
+      board.appendChild(slot);
+    });
+
+    const indices = [...Array(ROWS*COLS).keys()].sort(()=>Math.random()-0.5);
+    piecesLeft.innerHTML = "";
+    piecesRight.innerHTML = "";
+
+    indices.forEach((i,pos)=>{
+      const piece = document.createElement("div");
+      piece.className = "piece";
+      piece.dataset.index = i;
+      piece.style.width = tileW + "px";
+      piece.style.height = tileH + "px";
+      piece.style.backgroundSize = `${w}px ${h}px`;
+      piece.style.backgroundPosition =
+        `${-(i%COLS)*tileW}px ${-Math.floor(i/COLS)*tileH}px`;
+
+      enableDrag(piece);
+      (pos < indices.length/2 ? piecesLeft : piecesRight).appendChild(piece);
+    });
+
+    statusEl.textContent = "Sleep de stukken naar het midden.";
+    checkCompletion();
+  };
+}
+
+window.addEventListener("pointermove", onPointerMove, {passive:false});
+window.addEventListener("pointerup", onPointerUp);
+window.addEventListener("resize", ()=>setTimeout(setupPuzzle, 150));
+
+setupPuzzle();
+</script>
+</body>
+</html>
